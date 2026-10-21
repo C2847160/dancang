@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+
+# test
+coverage/
+
+# env
+.env
+.env.*
+!.env.example
+
+# tooling caches
+.turbo/
+.eslintcache
+*.log
+
+# pnpm local store (set in .npmrc to avoid global store conflicts)
+.pnpm-store/
+
+# editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# agent tooling workspace rules
+.trae/

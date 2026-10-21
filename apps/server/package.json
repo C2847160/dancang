@@ -1,0 +1,23 @@
+{
+  "name": "@repo/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@repo/shared-types": "workspace:*",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.0",
+    "@types/node": "24.0.0",
+    "tsx": "^4.20.0",
+    "vitest": "^5.0.5"
+  }
+}

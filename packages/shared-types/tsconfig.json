@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // Project References (tsc -b) requirements: composite forces declaration
+    // emit, so noEmit must be disabled; declarations go to gitignored dist/.
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "declarationDir": "dist"
+  },
+  "include": ["src"]
+}

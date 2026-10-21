@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "paths": {
+      "@repo/shared-types": ["./packages/shared-types/src/index.ts"],
+      "@repo/shared-types/*": ["./packages/shared-types/src/*"],
+      "@repo/shared-utils": ["./packages/shared-utils/src/index.ts"],
+      "@repo/shared-utils/*": ["./packages/shared-utils/src/*"]
+    }
+  },
+  "files": [],
+  "references": [{ "path": "./apps/web" }, { "path": "./apps/server" }],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

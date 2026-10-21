@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    // Project References (tsc -b): composite requires declaration emit.
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "declarationDir": "dist"
+  },
+  "references": [{ "path": "../../packages/shared-types" }],
+  "include": ["src"]
+}
