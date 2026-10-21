@@ -2,6 +2,7 @@
   "name": "ai-monorepo",
   "version": "0.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Open-source AI engineering monorepo — apps/web (React + Vite) + apps/server (Express), with strict frontend/backend separation.",
   "engines": {
     "node": ">=20",
