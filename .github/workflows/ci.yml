@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Lint · Format · Type · Test · Deps
+    runs-on: ubuntu-latest
+
+    # CI has no use for local git hooks — skip the `prepare` script
+    # (which runs `husky`) during install.
+    env:
+      HUSKY: 0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm v9 ships with corepack, but pinning via pnpm/action-setup
+      # guarantees the exact version declared in package.json's
+      # `packageManager` field is used.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting (Prettier)
+        run: pnpm format:check
+
+      - name: Lint (ESLint)
+        run: pnpm lint
+
+      - name: Type-check (tsc -b Project References)
+        run: pnpm typecheck
+
+      - name: Test (Vitest)
+        run: pnpm test
+
+      - name: Dependency boundaries (dependency-cruiser)
+        run: pnpm check:deps
