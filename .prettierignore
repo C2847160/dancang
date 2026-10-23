@@ -1,0 +1,23 @@
+# Dependencies / lockfiles
+node_modules
+.pnpm-store
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+# Build outputs
+dist
+build
+coverage
+*.tsbuildinfo
+
+# IDE / tools
+.trae
+.vscode
+.idea
+
+# System
+Thumbs.db
+.DS_Store
+
+# Test fixtures
+**/__snapshots__/**

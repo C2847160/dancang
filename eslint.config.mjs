@@ -15,6 +15,7 @@ import tseslint from 'typescript-eslint';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import boundaries from 'eslint-plugin-boundaries';
+import prettier from 'eslint-config-prettier';
 
 export default [
   {
@@ -101,4 +102,9 @@ export default [
       ],
     },
   },
+
+  // MUST be last: disables every formatting rule that overlaps Prettier.
+  // Otherwise ESLint and Prettier will fight, and husky pre-commit will
+  // fail on harmless formatting-only edits.
+  prettier,
 ];
