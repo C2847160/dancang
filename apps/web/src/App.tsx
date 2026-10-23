@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { User } from '@repo/shared-types';
+import { IS_MOCK_MODE } from './lib/api';
 import LoginPage from './pages/Login';
 import UserListPage from './pages/UserList';
 
@@ -20,10 +21,23 @@ const layoutStyle: CSSProperties = {
 };
 
 const headerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
   fontSize: '18px',
   fontWeight: 'bold',
   borderBottom: '1px solid #ddd',
   paddingBottom: '8px',
+};
+
+const badgeStyle: CSSProperties = {
+  fontSize: '12px',
+  fontWeight: 'normal',
+  color: '#8a6d3b',
+  backgroundColor: '#fff3cd',
+  border: '1px solid #ffeeba',
+  borderRadius: '10px',
+  padding: '2px 8px',
 };
 
 const panelStyle: CSSProperties = {
@@ -52,7 +66,14 @@ export default function App() {
 
   return (
     <div style={layoutStyle}>
-      <header style={headerStyle}>Dancang</header>
+      <header style={headerStyle}>
+        <span>Dancang</span>
+        {IS_MOCK_MODE && (
+          <span style={badgeStyle} title="No API configured: the page uses built-in demo data">
+            demo data
+          </span>
+        )}
+      </header>
 
       <section style={panelStyle}>
         {currentUser === null ? (

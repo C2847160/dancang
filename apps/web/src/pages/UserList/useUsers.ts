@@ -1,10 +1,12 @@
 /**
- * Custom hook that owns the user list data fetch (GET /api/users).
+ * Custom hook that owns the user list data fetch.
  * Handles loading/error state, non-ok HTTP responses, and cleanup
  * via AbortController (no state updates after unmount).
+ * The actual call (real API or built-in demo data) is decided in src/lib/api.ts.
  */
 import { useEffect, useState } from 'react';
-import type { User, UserListResponse } from '@repo/shared-types';
+import type { User } from '@repo/shared-types';
+import { getUsers } from '../../lib/api';
 
 /** View state composed from contract types, exposed to the page component. */
 export interface UseUsersResult {
@@ -29,11 +31,7 @@ export function useUsers(): UseUsersResult {
 
     const load = async (): Promise<void> => {
       try {
-        const res = await fetch('/api/users', { signal: controller.signal });
-        if (!res.ok) {
-          throw new Error(`Request failed with status ${res.status}`);
-        }
-        const data = (await res.json()) as UserListResponse;
+        const data = await getUsers(controller.signal);
         if (active) {
           setUsers(data.items);
           setError(null);

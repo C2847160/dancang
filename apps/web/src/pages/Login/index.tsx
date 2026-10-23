@@ -59,8 +59,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
       )}
 
       <p style={hintStyle}>
-        Demo account: <code>ada@example.com</code> / <code>password123</code> (seeded in memory when
-        the server starts).
+        Demo account: <code>ada@example.com</code> / <code>password123</code>
       </p>
     </div>
   );
