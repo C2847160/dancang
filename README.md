@@ -452,9 +452,11 @@ flowchart TB
 
 Vite 在**构建时**把 `VITE_*` 变量内联进产物，运行时读环境变量无效。改完变量后到 **Deployments → 最新一条 → ⋯ → Redeploy**，否则页面仍是旧值。
 
-### 7.5 备选：Netlify
+### 7.5 备选：Netlify（`*.vercel.app` 被污染时推荐）
 
-不想用 Vercel 的话，Netlify 的等价配置是仓库根的 `netlify.toml`：
+部分网络（尤其国内）对**整个 `*.vercel.app` 域名区**做了 DNS 污染：任意子域都会解析到随机的无关 IP，表现为页面一直转圈、超时打不开。这**不是部署失败**——站点对其他网络是正常的，只是本机解析不到。
+
+实测对照（同一台机器）：`*.vercel.app` 全部解析失败，而 `netlify.app` / `pages.dev` 解析正常且可访问。因此仓库已提供 [netlify.toml](netlify.toml)，迁移成本约一分钟：
 
 ```toml
 [build]
@@ -463,6 +465,7 @@ Vite 在**构建时**把 `VITE_*` 变量内联进产物，运行时读环境变�
 
 [build.environment]
   NODE_VERSION = "24"
+  PNPM_VERSION = "9.15.0"
 
 [[redirects]]
   from = "/*"
@@ -470,17 +473,26 @@ Vite 在**构建时**把 `VITE_*` 变量内联进产物，运行时读环境变�
   status = 200
 ```
 
-Netlify 需要在 **Site settings → Build & deploy → Environment** 里设置 `PNPM_VERSION=9.15.0`（或读取根 `packageManager`），并在 **Environment variables** 里配 `VITE_API_BASE_URL`。
+操作步骤：
+
+1. 打开 <https://app.netlify.com/start>，用 GitHub 登录。
+2. 选 **Import an existing project** → **GitHub** → 授权后选 `C2847160/dancang`。
+3. 构建设置**全部留空**（`netlify.toml` 已覆盖），直接 **Deploy site**。
+4. 部署完成后域名形如 `https://<random-name>.netlify.app`，可在 **Site configuration → General → Site details → Change site name** 改成 `dancang`。
+5. 需要接真实后端时，在 **Site configuration → Environment variables** 加 `VITE_API_BASE_URL`，然后 **Deploys → Trigger deploy → Deploy site** 重新部署。
+
+> Cloudflare Pages 同理：<https://dash.cloudflare.com> → Workers & Pages → Create → Pages → Connect to Git，构建命令 `pnpm --filter @repo/web build`，输出目录 `apps/web/dist`。
 
 ### 7.6 常见坑
 
-| 现象                                      | 原因 / 处理                                                                                                             |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| 构建报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` | Root Directory 被设成了 `apps/web`，改回仓库根                                                                          |
-| 页面 404 / 白屏                           | `outputDirectory` 与 `rewrites` 没生效，确认 [vercel.json](vercel.json) 在**仓库根**而不是 `apps/web`                   |
-| 登录一直报 `Cannot reach the API at ...`  | `VITE_API_BASE_URL` 填成了静态站点自己的域名：静态站点没有 `/api`，会被 rewrite 回 `index.html`。该变量必须指向真实后端 |
-| 改了环境变量但页面没变                    | 没有重新部署，见 §7.4                                                                                                   |
-| 部署后登录成功但刷新丢状态                | 登录态只存在 React state 里，不写 localStorage，也不签发 token（见 §8）                                                 |
+| 现象                                      | 原因 / 处理                                                                                                                       |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 页面一直转圈 / 完全打不开（无任何错误码） | 本地网络污染了 `*.vercel.app`，DNS 解析到无关 IP。不是部署失败，改用 Netlify 或 Cloudflare Pages（§7.5），或换网络 / 绑自定义域名 |
+| 构建报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` | Root Directory 被设成了 `apps/web`，改回仓库根                                                                                    |
+| 页面 404 / 白屏                           | `outputDirectory` 与 `rewrites` 没生效，确认 [vercel.json](vercel.json) 在**仓库根**而不是 `apps/web`                             |
+| 登录一直报 `Cannot reach the API at ...`  | `VITE_API_BASE_URL` 填成了静态站点自己的域名：静态站点没有 `/api`，会被 rewrite 回 `index.html`。该变量必须指向真实后端           |
+| 改了环境变量但页面没变                    | 没有重新部署，见 §7.4                                                                                                             |
+| 部署后登录成功但刷新丢状态                | 登录态只存在 React state 里，不写 localStorage，也不签发 token（见 §8）                                                           |
 
 ---
 

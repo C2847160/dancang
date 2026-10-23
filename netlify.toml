@@ -1,0 +1,23 @@
+# Netlify deployment for the frontend only (see README §7).
+# Kept alongside vercel.json: on some networks the entire *.vercel.app zone is
+# DNS-polluted, while *.netlify.app resolves normally, so this is a one-import
+# fallback that needs no network changes.
+
+[build]
+  command = "pnpm --filter @repo/web build"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+  PNPM_VERSION = "9.15.0"
+
+# SPA fallback: every unknown path serves index.html so client-side routing and
+# the demo dataset work on a hard refresh.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Vite inlines VITE_* variables at build time, so a change requires a redeploy.
+# Set VITE_API_BASE_URL in Site settings → Environment variables to point at a
+# real backend; leave it unset to use the built-in demo dataset.
