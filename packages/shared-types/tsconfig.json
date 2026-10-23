@@ -9,5 +9,8 @@
     "rootDir": "src",
     "declarationDir": "dist"
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Tests are run by Vitest, not bundled: keeping them out of the program
+  // stops their declarations leaking into the published type surface.
+  "exclude": ["src/**/*.test.ts"]
 }

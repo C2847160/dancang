@@ -45,5 +45,10 @@ jobs:
       - name: Test (Vitest)
         run: pnpm test
 
+      # typecheck only emits declarations; the bundler is never exercised
+      # anywhere else, so a broken Vite build has to fail here.
+      - name: Build (vite)
+        run: pnpm build
+
       - name: Dependency boundaries (dependency-cruiser)
         run: pnpm check:deps

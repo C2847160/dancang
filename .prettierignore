@@ -6,6 +6,7 @@ pnpm-workspace.yaml
 
 # Build outputs
 dist
+dist-types
 build
 coverage
 *.tsbuildinfo

@@ -8,8 +8,14 @@
     "noEmit": false,
     "emitDeclarationOnly": true,
     "rootDir": "src",
-    "declarationDir": "dist"
+    // Kept separate from Vite's outDir: `vite build` empties `dist/`, which
+    // silently deleted the declarations and left `tsc -b` believing it was
+    // up to date (verified locally: dist/*.d.ts vanished after a build).
+    "declarationDir": "dist-types"
   },
   "references": [{ "path": "../../packages/shared-types" }],
-  "include": ["src"]
+  "include": ["src"],
+  // Tests are run by Vitest, not bundled: keeping them out of the program
+  // stops their declarations leaking into the published type surface.
+  "exclude": ["src/**/*.test.ts"]
 }
