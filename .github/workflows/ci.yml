@@ -11,24 +11,21 @@ jobs:
     name: Lint · Format · Type · Test · Deps
     runs-on: ubuntu-latest
 
-    # CI has no use for local git hooks — skip the `prepare` script
-    # (which runs `husky`) during install.
     env:
       HUSKY: 0
 
     steps:
       - uses: actions/checkout@v4
 
-      # pnpm v9 ships with corepack, but pinning via pnpm/action-setup
-      # guarantees the exact version declared in package.json's
-      # `packageManager` field is used.
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
 
+      # Ubuntu-latest now ships Node 24 runners (Node 20 deprecated Sept 2025).
+      # Pin 24 explicitly so there's no silent forced-upgrade ambiguity.
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: pnpm
 
       - name: Install dependencies
@@ -38,7 +35,10 @@ jobs:
         run: pnpm format:check
 
       - name: Lint (ESLint)
-        run: pnpm lint
+        run: pnpm lint 2>&1 | tee lint.log
+      - name: Show lint log (last 50 lines)
+        if: failure()
+        run: tail -50 lint.log
 
       - name: Type-check (tsc -b Project References)
         run: pnpm typecheck
