@@ -41,17 +41,12 @@ jobs:
       - name: Test (Vitest)
         run: pnpm test
 
-      # Split depcruise into apps-only and packages-only to isolate
-      # what triggers the Linux-runner-only exit 1 we see on every run.
-      - name: Dependency boundaries — apps/ only
-        run: |
-          set -o pipefail
-          pnpm depcruise apps --output-type text 2>&1 | tee depcruise-apps.log
-      - name: Dependency boundaries — packages/ only
-        run: |
-          set -o pipefail
-          pnpm depcruise packages --output-type text 2>&1 | tee depcruise-pkgs.log
-      - name: Dependency boundaries — full (apps + packages)
-        run: |
-          set -o pipefail
-          pnpm depcruise apps packages --output-type text 2>&1 | tee depcruise-full.log
+      # Isolating which directory triggers depcruise's Linux-only exit 1.
+      - name: depcruise apps/web
+        run: pnpm depcruise apps/web
+      - name: depcruise apps/server
+        run: pnpm depcruise apps/server
+      - name: depcruise packages
+        run: pnpm depcruise packages
+      - name: depcruise full (apps + packages)
+        run: pnpm depcruise apps packages
