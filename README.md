@@ -25,27 +25,46 @@
 
 ## 2. 主要功能
 
-| 能力                   | 位置                                                         | 说明                                                                                                        |
-| ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse`，零运行时依赖、源码直出             |
-| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                       | `web-app` / `server-app` 只能依赖 `shared-types`；`shared-types` 不允许依赖任何包；未列出的依赖一律 `error` |
-| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                   |
-| 全仓类型检查           | [tsconfig.json](tsconfig.json)                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                    |
-| 后端分层示例           | [apps/server/src/modules/user](apps/server/src/modules/user) | 垂直模块：`user.routes.ts` / `user.controller.ts` / `user.service.ts` / `user.types.ts`                     |
-| 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                         |
-| 单元测试               | 各 workspace `src/sanity.test.ts`                            | 每包 1 个真实执行的 Vitest 用例（含 server 调用 service 的用例）                                            |
+| 能力                   | 位置                                                                                         | 说明                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)                                               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse` / `LoginRequest` / `LoginResponse` / `ApiErrorBody`，零运行时依赖、源码直出 |
+| 请求体校验             | [apps/server/src/middlewares/validate.ts](apps/server/src/middlewares/validate.ts)           | zod schema 在进入 controller 前校验并归一化 `req.body`，失败统一转成 400 + 字段级 details                                                           |
+| 全局错误处理           | [apps/server/src/middlewares/error-handler.ts](apps/server/src/middlewares/error-handler.ts) | 4 参 Express 错误中间件：`AppError` → 对应状态码，`ZodError` → 400，未知异常 → 500 且只回固定文案                                                   |
+| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                                                       | `web-app` / `server-app` 只能依赖 `shared-types`；`shared-types` 不允许依赖任何包；未列出的依赖一律 `error`                                         |
+| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)                                           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                                                           |
+| 全仓类型检查           | [tsconfig.json](tsconfig.json)                                                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                                            |
+| 后端分层示例           | [apps/server/src/modules](apps/server/src/modules)                                           | 垂直模块：`user`（routes / controller / service / schema）与 `auth`（login 校验链路）                                                               |
+| 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)                                   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                                                                 |
+| 测试                   | `apps/server/src/**/*.test.ts`                                                               | service 单测 9 例 + HTTP 集成测试 10 例（supertest 走真实中间件链，覆盖 201 / 400 / 401 / 404）                                                     |
 
 ### 已实现的 API
 
-| 方法     | 路径             | 说明                                          |
-| -------- | ---------------- | --------------------------------------------- |
-| `GET`    | `/api/users`     | 返回全部用户（`items` + `total`，无分页参数） |
-| `GET`    | `/api/users/:id` | 按 id 查询，不存在返回 `404`                  |
-| `POST`   | `/api/users`     | 创建用户，成功返回 `201`                      |
-| `PATCH`  | `/api/users/:id` | 局部更新，不存在返回 `404`                    |
-| `DELETE` | `/api/users/:id` | 删除，成功返回 `204`，不存在返回 `404`        |
+| 方法     | 路径              | 说明                                                              |
+| -------- | ----------------- | ----------------------------------------------------------------- |
+| `GET`    | `/api/users`      | 返回全部用户（`items` + `total`，无分页参数）                     |
+| `GET`    | `/api/users/:id`  | 按 id 查询，不存在返回 `404` + JSON 错误体                        |
+| `POST`   | `/api/users`      | 创建用户（需 `password`，服务端只存 scrypt 加盐哈希），返回 `201` |
+| `PATCH`  | `/api/users/:id`  | 局部更新，不存在返回 `404`                                        |
+| `DELETE` | `/api/users/:id`  | 删除，成功返回 `204`，不存在返回 `404`                            |
+| `POST`   | `/api/auth/login` | 校验邮箱 + 密码，成功返回 `200 { user }`，失败返回 `401`          |
 
-数据存在**内存数组**中，进程重启即清空；id 形如 `usr_1`，`createdAt` 为 ISO 8601 字符串。目前**没有**数据库、鉴权、CORS 中间件与持久化（见 [§7 当前范围](#7-当前范围未实现的部分)）。
+数据存在**内存数组**中，进程重启即清空；id 形如 `usr_1`，`createdAt` 为 ISO 8601 字符串。登录只做凭据校验，**不签发 token / 不建立会话**。目前**没有**数据库、CORS 中间件与持久化（见 [§7 当前范围](#7-当前范围未实现的部分)）。
+
+### 统一错误格式
+
+所有失败响应（含 404、校验失败、未捕获异常）都是同一结构，定义于 [packages/shared-types/src/error.ts](packages/shared-types/src/error.ts)：
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request body is invalid",
+    "details": [{ "path": "password", "message": "Password must be at least 8 characters" }]
+  }
+}
+```
+
+`code` 取值：`VALIDATION_ERROR` / `UNAUTHORIZED` / `NOT_FOUND` / `CONFLICT` / `INTERNAL_ERROR`。`details` 只在字段级校验失败时出现。
 
 ---
 
@@ -130,23 +149,23 @@ $env:PORT=3200; pnpm --filter @repo/server dev
 
 ### 门禁命令（CI 可用的卡点）
 
-| 命令                | 作用                                 | 说明                                                                                                       |
-| ------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `pnpm lint`         | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查                                                                                    |
-| `pnpm typecheck`    | `tsc -b`（Project References 全图）  | 覆盖 shared-types → server → web                                                                           |
-| `pnpm test`         | `vitest run`                         | 每个 workspace 各 1 个用例，真实执行                                                                       |
-| `pnpm check:deps`   | `depcruise apps packages`            | 依赖图层面校验三条边界规则                                                                                 |
-| `pnpm format:check` | `prettier --check .`                 | 校验格式化，CI 会跑                                                                                        |
-| `pnpm format`       | `prettier --write .`                 | 本地批量修复格式化                                                                                         |
-| `pnpm build`        | `pnpm -r run build`                  | 目前**仅** `apps/web` 有 `build` 脚本，产物输出到 `apps/web/dist`；server 以 `tsx` 直接运行，无 build 脚本 |
+| 命令                | 作用                                 | 说明                                                                                                                      |
+| ------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`         | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查                                                                                                   |
+| `pnpm typecheck`    | `tsc -b`（Project References 全图）  | 覆盖 shared-types → server → web                                                                                          |
+| `pnpm test`         | `vitest run`                         | shared-types / web 各 1 例；server 19 例（service 单测 + supertest 集成测试）                                             |
+| `pnpm check:deps`   | `depcruise apps packages`            | 依赖图层面校验三条边界规则                                                                                                |
+| `pnpm format:check` | `prettier --check .`                 | 校验格式化，CI 会跑                                                                                                       |
+| `pnpm format`       | `prettier --write .`                 | 本地批量修复格式化                                                                                                        |
+| `pnpm build`        | `pnpm -r run build`                  | 目前**仅** `apps/web` 有 `build` 脚本，产物输出到 `apps/web/dist`；server 以 `tsx` 直接运行，无 build 脚本。CI 会跑这一步 |
 
 ### 三层门禁的执行时机
 
-| 时机                | 钩子 / 平台         | 实际执行内容                                                  |
-| ------------------- | ------------------- | ------------------------------------------------------------- |
-| `git commit`        | `.husky/pre-commit` | `lint-staged`：暂存文件跑 `eslint --fix` + `prettier --write` |
-| `git push`          | `.husky/pre-push`   | `typecheck` + `test` + `check:deps`                           |
-| PR / push 到 `main` | GitHub Actions `CI` | `format:check` + `lint` + `typecheck` + `test` + `check:deps` |
+| 时机                | 钩子 / 平台         | 实际执行内容                                                            |
+| ------------------- | ------------------- | ----------------------------------------------------------------------- |
+| `git commit`        | `.husky/pre-commit` | `lint-staged`：暂存文件跑 `eslint --fix` + `prettier --write`           |
+| `git push`          | `.husky/pre-push`   | `typecheck` + `test` + `check:deps`                                     |
+| PR / push 到 `main` | GitHub Actions `CI` | `format:check` + `lint` + `typecheck` + `test` + `build` + `check:deps` |
 
 提交前检查只覆盖被修改的文件（毫秒级），推送前与 CI 跑全量（秒级）。任何一层不通过都会中断流程。
 
@@ -176,17 +195,17 @@ $env:PORT=3200; pnpm --filter @repo/server dev
 
 ## 5. 输入输出示例
 
-以下示例的字段与 [packages/shared-types/src/user.ts](packages/shared-types/src/user.ts) 完全一致。
+以下示例的字段与 [packages/shared-types/src/user.ts](packages/shared-types/src/user.ts)、[error.ts](packages/shared-types/src/error.ts) 完全一致。
 
 ### 创建用户（POST /api/users）
 
 ```bash
 curl -X POST http://localhost:3100/api/users \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","name":"Ada"}'
+  -d '{"email":"ada@example.com","name":"Ada","password":"correct-horse"}'
 ```
 
-请求体类型 `CreateUserRequest`：`{ email: string; name: string }`
+请求体类型 `CreateUserRequest`：`{ email: string; name: string; password: string }`。`password` 至少 8 位，只用于在服务端生成 scrypt 加盐哈希，**不会出现在任何响应里**。
 
 响应 `201 Created`，类型 `User`：
 
@@ -200,6 +219,34 @@ curl -X POST http://localhost:3100/api/users \
 ```
 
 > `avatarUrl` 为可选字段，创建时不传则不出现。
+
+字段不合法时返回 `400` 与字段级 details：
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Request body is invalid",
+    "details": [{ "path": "password", "message": "Password must be at least 8 characters" }]
+  }
+}
+```
+
+### 登录（POST /api/auth/login）
+
+```bash
+curl -X POST http://localhost:3100/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"correct-horse"}'
+```
+
+请求体类型 `LoginRequest`：`{ email: string; password: string }`（`email` 必须是合法邮箱、`password` 不可为空）。
+
+- 凭据匹配：`200` + `LoginResponse`（`{ "user": { ... } }`）
+- 邮箱或密码错误：`401` + `{ "error": { "code": "UNAUTHORIZED", "message": "Invalid email or password" } }`
+- 请求体格式错误：`400` + `VALIDATION_ERROR`
+
+登录只验证凭据，不签发 token，也不建立会话（见 [§7](#7-当前范围未实现的部分)）。
 
 ### 查询列表（GET /api/users）
 
@@ -230,7 +277,7 @@ curl http://localhost:3100/api/users/usr_1
 ```
 
 - 命中：`200` + 单个 `User` 对象（结构同上）
-- 未命中：`404`（Express 默认状态文本 `Not Found`）
+- 未命中：`404` + JSON 错误体 `{ "error": { "code": "NOT_FOUND", "message": "User usr_1 not found" } }`
 
 ### 局部更新（PATCH /api/users/:id）
 
@@ -298,9 +345,9 @@ packages/
 为避免误解，以下内容**尚未实现**，仅在规范中预留：
 
 - 数据库 / 持久化（当前为内存存储，重启即清空）
-- 鉴权与用户会话
+- 会话与鉴权中间件：`POST /api/auth/login` 只校验凭据，不签发 token、不保护任何路由
 - CORS 中间件（跨域调用请走 Vite 代理）
 - AI 能力集成（`apps/server/src/ai/` 尚未创建）
 - `packages/shared-utils`（跨端工具包尚未创建；未来新增时需同步更新 `tsconfig.json` 的 `paths` 与 ESLint boundaries 配置）
 - 前端写入表单（页面目前只做列表展示）
-- 测试仅为各 workspace 1 个 sanity 用例，不代表业务覆盖率
+- 前端组件测试：web 端仍只有 1 个占位用例，尚未引入 jsdom / Testing Library；测试深度目前集中在 server

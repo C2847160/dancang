@@ -13,10 +13,12 @@ export interface User {
   createdAt: string;
 }
 
-/** Payload for creating a user. */
+/** Payload for creating a user. The password is write-only and never returned. */
 export interface CreateUserRequest {
   email: string;
   name: string;
+  /** Plain-text password on the wire; the server stores only a salted hash. */
+  password: string;
 }
 
 /** Payload for partially updating a user. All fields optional. */
@@ -30,4 +32,15 @@ export interface UpdateUserRequest {
 export interface UserListResponse {
   items: User[];
   total: number;
+}
+
+/** Payload for logging in with an email/password pair. */
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+/** Successful login response. Never carries credentials. */
+export interface LoginResponse {
+  user: User;
 }
