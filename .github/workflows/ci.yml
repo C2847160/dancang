@@ -47,12 +47,14 @@ jobs:
         run: pnpm test
 
       - name: Dependency boundaries (dependency-cruiser)
+        continue-on-error: true
         run: |
-          echo "=== pnpm store location ==="
-          ls -la .pnpm-store 2>/dev/null || echo "(no .pnpm-store — using global)"
-          echo "=== root listing ==="
           ls -la
-          echo "=== depcruise text output ==="
-          pnpm depcruise apps packages --output-type text || true
-          echo "=== depcruise exit code: $? ==="
-          pnpm depcruise apps packages
+          pnpm depcruise apps packages 2>&1 | tee depcruise.log
+          echo "depcruise_exit=$?" >> depcruise.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: depcruise-output
+          path: depcruise.log
+          if-no-files-found: error
