@@ -47,4 +47,12 @@ jobs:
         run: pnpm test
 
       - name: Dependency boundaries (dependency-cruiser)
-        run: pnpm check:deps
+        run: |
+          echo "=== pnpm store location ==="
+          ls -la .pnpm-store 2>/dev/null || echo "(no .pnpm-store — using global)"
+          echo "=== root listing ==="
+          ls -la
+          echo "=== depcruise text output ==="
+          pnpm depcruise apps packages --output-type text || true
+          echo "=== depcruise exit code: $? ==="
+          pnpm depcruise apps packages
