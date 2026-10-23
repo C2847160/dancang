@@ -46,15 +46,17 @@ jobs:
       - name: Test (Vitest)
         run: pnpm test
 
+      # dependency-cruiser sometimes surfaces a path-resolution error on
+      # the Linux runner that we never see locally. pipefail + tee +
+      # upload-artifact ensures we always get the real exit code AND
+      # the full stderr/stdout for debugging.
       - name: Dependency boundaries (dependency-cruiser)
-        continue-on-error: true
         run: |
-          ls -la
-          pnpm depcruise apps packages 2>&1 | tee depcruise.log
-          echo "depcruise_exit=$?" >> depcruise.log
+          set -o pipefail
+          pnpm depcruise apps packages --output-type text 2>&1 | tee depcruise.log
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
           name: depcruise-output
           path: depcruise.log
-          if-no-files-found: error
+          if-no-files-found: warn
