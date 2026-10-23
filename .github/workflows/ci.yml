@@ -11,17 +11,12 @@ jobs:
     name: Lint · Format · Type · Test · Deps
     runs-on: ubuntu-latest
 
-    # CI has no use for local git hooks — skip the `prepare` script
-    # (which runs `husky`) during install.
     env:
       HUSKY: 0
 
     steps:
       - uses: actions/checkout@v4
 
-      # pnpm v9 ships with corepack, but pinning via pnpm/action-setup
-      # guarantees the exact version declared in package.json's
-      # `packageManager` field is used.
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
@@ -46,18 +41,17 @@ jobs:
       - name: Test (Vitest)
         run: pnpm test
 
-      # dependency-cruiser sometimes surfaces a path-resolution error on
-      # the Linux runner that we never see locally. base64-encode the
-      # full output onto a single line so GitHub's step-console truncation
-      # doesn't eat it.
-      - name: Dependency boundaries (dependency-cruiser)
+      # Split depcruise into apps-only and packages-only to isolate
+      # what triggers the Linux-runner-only exit 1 we see on every run.
+      - name: Dependency boundaries — apps/ only
         run: |
           set -o pipefail
-          pnpm depcruise apps packages --output-type text 2>&1 | tee depcruise.log
-      - name: depcruise log (base64)
-        if: failure()
+          pnpm depcruise apps --output-type text 2>&1 | tee depcruise-apps.log
+      - name: Dependency boundaries — packages/ only
         run: |
-          echo "=== DEPCRUISE LOG (base64, one line, decode locally) ==="
-          base64 -w 0 depcruise.log
-          echo ""
-          echo "=== END ==="
+          set -o pipefail
+          pnpm depcruise packages --output-type text 2>&1 | tee depcruise-pkgs.log
+      - name: Dependency boundaries — full (apps + packages)
+        run: |
+          set -o pipefail
+          pnpm depcruise apps packages --output-type text 2>&1 | tee depcruise-full.log
