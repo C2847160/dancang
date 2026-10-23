@@ -25,15 +25,15 @@
 
 ## 2. 主要功能
 
-| 能力                   | 位置                                                         | 说明                                                                                                                                   |
-| ---------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse`，零运行时依赖、源码直出                                        |
-| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                       | `web-app` / `server-app` 只能依赖 `shared-types`（及预留的 `shared-utils`）；`shared-types` 不允许依赖任何包；未列出的依赖一律 `error` |
-| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                                              |
-| 全仓类型检查           | [tsconfig.json](tsconfig.json)                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                               |
-| 后端分层示例           | [apps/server/src/modules/user](apps/server/src/modules/user) | 垂直模块：`user.routes.ts` / `user.controller.ts` / `user.service.ts` / `user.types.ts`                                                |
-| 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                                                    |
-| 单元测试               | 各 workspace `src/sanity.test.ts`                            | 每包 1 个真实执行的 Vitest 用例（含 server 调用 service 的用例）                                                                       |
+| 能力                   | 位置                                                         | 说明                                                                                                        |
+| ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse`，零运行时依赖、源码直出             |
+| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                       | `web-app` / `server-app` 只能依赖 `shared-types`；`shared-types` 不允许依赖任何包；未列出的依赖一律 `error` |
+| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                   |
+| 全仓类型检查           | [tsconfig.json](tsconfig.json)                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                    |
+| 后端分层示例           | [apps/server/src/modules/user](apps/server/src/modules/user) | 垂直模块：`user.routes.ts` / `user.controller.ts` / `user.service.ts` / `user.types.ts`                     |
+| 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                         |
+| 单元测试               | 各 workspace `src/sanity.test.ts`                            | 每包 1 个真实执行的 Vitest 用例（含 server 调用 service 的用例）                                            |
 
 ### 已实现的 API
 
@@ -49,25 +49,51 @@
 
 ---
 
-## 3. 安装方法
+## 3. 本地运行指南
 
-**前置要求**
+### 3.1 前置要求
 
-- Node.js >= 20（`package.json` 的 `engines` 声明）
-- pnpm >= 9（仓库锁定 `packageManager: pnpm@9.15.0`）
+| 依赖    | 版本要求                       | 检查命令        |
+| ------- | ------------------------------ | --------------- |
+| Node.js | `>= 20`（推荐 24，与 CI 一致） | `node -v`       |
+| pnpm    | `>= 9`（仓库锁定 `9.15.0`）    | `pnpm -v`       |
+| Git     | 任意近期版本                   | `git --version` |
+
+`package.json` 的 `engines` 只强制 `>= 20`；CI 与本地推荐环境均为 Node 24。Node 20 在 GitHub Actions 上已被标记为 deprecated，低于 20 的版本不受支持。
+
+### 3.2 从零到跑通（四步）
 
 ```bash
-# 若尚无 pnpm
-corepack enable pnpm
-# 或 npm i -g pnpm
+# 1. 克隆仓库
+git clone https://github.com/C2847160/dancang.git
+cd dancang
 
-# 安装依赖（根目录执行，一次装完所有 workspace）
+# 2. 确认 Node 版本（不满足则先切版本）
+node -v
+
+# 3. 安装依赖（根目录执行一次，装完所有 workspace）
+#    若尚无 pnpm：corepack enable pnpm  或  npm i -g pnpm
 pnpm install
+
+# 4. 同时启动前后端
+pnpm dev
 ```
 
-**关于 `.npmrc`**：[.npmrc](.npmrc) 将依赖 store 固定为项目内的 `.pnpm-store/`（已在 `.gitignore` 中排除）。这样做的原因是：多项目共用全局 store 时会因并发写入出现 `ERR_PNPM_EPERM`，项目内 store 可完全隔离该冲突。首次 `pnpm install` 会重新下载依赖，之后复用本地 store。
+启动成功后：
 
-无需配置任何环境变量即可启动；`PORT` 可选（见下）。
+- 前端：<http://localhost:5173>
+- 后端：<http://localhost:3100>
+- 浏览器打开前端地址应看到用户列表表格（内存中初始为空，显示 `No users`）
+
+`pnpm install` 结束时会自动执行根 `prepare` 脚本安装 Git 钩子（husky），因此克隆后**无需额外步骤**即可获得提交前检查。如果你不想要钩子，可在命令前加 `HUSKY=0`。
+
+### 3.3 关于 `.npmrc`
+
+[.npmrc](.npmrc) 把依赖 store 固定为项目内的 `.pnpm-store/`（已在 `.gitignore` 中排除）。原因：多项目共用全局 store 时会因并发写入触发 `ERR_PNPM_EPERM`，项目内 store 可完全隔离该冲突。首次 `pnpm install` 会重新下载依赖，之后复用本地 store。
+
+### 3.4 环境变量
+
+服务端直接读取 `process.env`，**不加载 `.env` 文件**。变量清单与注入方式见 [.env.example](.env.example)；默认值即可直接启动，通常无需配置。
 
 ---
 
@@ -104,13 +130,36 @@ $env:PORT=3200; pnpm --filter @repo/server dev
 
 ### 门禁命令（CI 可用的卡点）
 
-| 命令              | 作用                                 | 说明                                                                                                       |
-| ----------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `pnpm lint`       | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查                                                                                    |
-| `pnpm typecheck`  | `tsc -b`（Project References 全图）  | 覆盖 shared-types → server → web                                                                           |
-| `pnpm test`       | `vitest run`                         | 每个 workspace 各 1 个用例，真实执行                                                                       |
-| `pnpm check:deps` | `depcruise apps packages`            | 依赖图层面校验三条边界规则                                                                                 |
-| `pnpm build`      | `pnpm -r run build`                  | 目前**仅** `apps/web` 有 `build` 脚本，产物输出到 `apps/web/dist`；server 以 `tsx` 直接运行，无 build 脚本 |
+| 命令                | 作用                                 | 说明                                                                                                       |
+| ------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`         | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查                                                                                    |
+| `pnpm typecheck`    | `tsc -b`（Project References 全图）  | 覆盖 shared-types → server → web                                                                           |
+| `pnpm test`         | `vitest run`                         | 每个 workspace 各 1 个用例，真实执行                                                                       |
+| `pnpm check:deps`   | `depcruise apps packages`            | 依赖图层面校验三条边界规则                                                                                 |
+| `pnpm format:check` | `prettier --check .`                 | 校验格式化，CI 会跑                                                                                        |
+| `pnpm format`       | `prettier --write .`                 | 本地批量修复格式化                                                                                         |
+| `pnpm build`        | `pnpm -r run build`                  | 目前**仅** `apps/web` 有 `build` 脚本，产物输出到 `apps/web/dist`；server 以 `tsx` 直接运行，无 build 脚本 |
+
+### 三层门禁的执行时机
+
+| 时机                | 钩子 / 平台         | 实际执行内容                                                  |
+| ------------------- | ------------------- | ------------------------------------------------------------- |
+| `git commit`        | `.husky/pre-commit` | `lint-staged`：暂存文件跑 `eslint --fix` + `prettier --write` |
+| `git push`          | `.husky/pre-push`   | `typecheck` + `test` + `check:deps`                           |
+| PR / push 到 `main` | GitHub Actions `CI` | `format:check` + `lint` + `typecheck` + `test` + `check:deps` |
+
+提交前检查只覆盖被修改的文件（毫秒级），推送前与 CI 跑全量（秒级）。任何一层不通过都会中断流程。
+
+### 常见问题排查
+
+| 现象                                                    | 原因与处理                                                                                                                                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EADDRINUSE :3100`                                      | 端口被占用。`netstat -ano \| findstr :3100` 找到 PID，或在 PowerShell 用 `$env:PORT=3200; pnpm --filter @repo/server dev` 换端口（记得同步改 Vite 代理） |
+| 前端页面请求 `/api/*` 返回 502 / 连接被拒绝             | 后端没起来，或端口与 [vite.config.ts](apps/web/vite.config.ts) 的代理目标不一致                                                                          |
+| `ERR_PNPM_EPERM`                                        | 全局 store 被其他进程占用。确认 [.npmrc](.npmrc) 的 `store-dir=.pnpm-store` 生效，必要时删除 `.pnpm-store/` 重装                                         |
+| `husky` 提示钩子未安装                                  | 手动执行 `pnpm exec husky init`，或重新 `pnpm install` 触发 `prepare`                                                                                    |
+| PowerShell 执行 `pnpm install` 报 `PSSecurityException` | 执行策略阻止了 `.ps1`。改用 `pnpm.cmd install`，不要为此关闭执行策略                                                                                     |
+| `tsx: not found`                                        | 依赖未安装完整，重新 `pnpm install`                                                                                                                      |
 
 ### 页面行为
 
@@ -252,6 +301,6 @@ packages/
 - 鉴权与用户会话
 - CORS 中间件（跨域调用请走 Vite 代理）
 - AI 能力集成（`apps/server/src/ai/` 尚未创建）
-- `packages/shared-utils`（跨端工具包尚未创建；根 `tsconfig.json` 的 `paths` 中已预留别名）
+- `packages/shared-utils`（跨端工具包尚未创建；未来新增时需同步更新 `tsconfig.json` 的 `paths` 与 ESLint boundaries 配置）
 - 前端写入表单（页面目前只做列表展示）
 - 测试仅为各 workspace 1 个 sanity 用例，不代表业务覆盖率

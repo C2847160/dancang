@@ -74,10 +74,9 @@ export default [
         {
           default: 'disallow',
           rules: [
-            { from: 'web-app', allow: ['shared-types', 'shared-utils'] },
-            { from: 'server-app', allow: ['shared-types', 'shared-utils'] },
+            { from: 'web-app', allow: ['shared-types'] },
+            { from: 'server-app', allow: ['shared-types'] },
             { from: 'shared-types', allow: [] },
-            { from: 'shared-utils', allow: ['shared-types'] },
           ],
         },
       ],
@@ -98,7 +97,6 @@ export default [
         { type: 'web-app', pattern: 'apps/web', mode: 'folder' },
         { type: 'server-app', pattern: 'apps/server', mode: 'folder' },
         { type: 'shared-types', pattern: 'packages/shared-types', mode: 'folder' },
-        { type: 'shared-utils', pattern: 'packages/shared-utils', mode: 'folder' },
       ],
     },
   },
