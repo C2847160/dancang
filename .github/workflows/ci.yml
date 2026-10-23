@@ -11,12 +11,17 @@ jobs:
     name: Lint · Format · Type · Test · Deps
     runs-on: ubuntu-latest
 
+    # CI has no use for local git hooks — skip the `prepare` script
+    # (which runs `husky`) during install.
     env:
       HUSKY: 0
 
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm v9 ships with corepack, but pinning via pnpm/action-setup
+      # guarantees the exact version declared in package.json's
+      # `packageManager` field is used.
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
@@ -41,12 +46,5 @@ jobs:
       - name: Test (Vitest)
         run: pnpm test
 
-      # Isolating which directory triggers depcruise's Linux-only exit 1.
-      - name: depcruise apps/web
-        run: pnpm depcruise apps/web
-      - name: depcruise apps/server
-        run: pnpm depcruise apps/server
-      - name: depcruise packages
-        run: pnpm depcruise packages
-      - name: depcruise full (apps + packages)
-        run: pnpm depcruise apps packages
+      - name: Dependency boundaries (dependency-cruiser)
+        run: pnpm check:deps

@@ -18,9 +18,7 @@
     "noEmit": true,
     "paths": {
       "@repo/shared-types": ["./packages/shared-types/src/index.ts"],
-      "@repo/shared-types/*": ["./packages/shared-types/src/*"],
-      "@repo/shared-utils": ["./packages/shared-utils/src/index.ts"],
-      "@repo/shared-utils/*": ["./packages/shared-utils/src/*"]
+      "@repo/shared-types/*": ["./packages/shared-types/src/*"]
     }
   },
   "files": [],
