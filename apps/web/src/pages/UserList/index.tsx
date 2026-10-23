@@ -45,15 +45,7 @@ function renderAvatar(user: User) {
   if (!user.avatarUrl) {
     return <span>—</span>;
   }
-  return (
-    <img
-      src={user.avatarUrl}
-      alt={user.name}
-      width={32}
-      height={32}
-      style={avatarStyle}
-    />
-  );
+  return <img src={user.avatarUrl} alt={user.name} width={32} height={32} style={avatarStyle} />;
 }
 
 /** Renders a single user row; `createdAt` is shown as a localized string. */

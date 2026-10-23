@@ -12,38 +12,38 @@
 
 本项目把这些问题从"约定"变成"机器可校验的规则"：
 
-| 问题 | 本项目的强制手段 |
-| --- | --- |
-| 前端直接引用后端代码，绕过 HTTP 契约 | ESLint `eslint-plugin-boundaries` + dependency-cruiser 双重拦截 |
-| 两端各写一份 API 类型，改一边忘另一边 | 契约集中在 `packages/shared-types`，两端只能 import |
-| 契约被悄悄放宽成 `any` | `@typescript-eslint/no-explicit-any` 为 error 级（全仓生效），且契约层 `dependencies` 为空 |
-| 后端分层形同虚设（controller 直接查库） | `routes → controller → service` 单向调用，无跨层快捷路径 |
-| 类型检查因 JSX/DOM 配置分家而失效 | TypeScript **Project References**（`tsc -b`）统一收口全仓 |
-| 门禁跑不起来 / 测试空转 | 每个 workspace 都有真实可执行的 `lint / typecheck / test` |
+| 问题                                    | 本项目的强制手段                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 前端直接引用后端代码，绕过 HTTP 契约    | ESLint `eslint-plugin-boundaries` + dependency-cruiser 双重拦截                            |
+| 两端各写一份 API 类型，改一边忘另一边   | 契约集中在 `packages/shared-types`，两端只能 import                                        |
+| 契约被悄悄放宽成 `any`                  | `@typescript-eslint/no-explicit-any` 为 error 级（全仓生效），且契约层 `dependencies` 为空 |
+| 后端分层形同虚设（controller 直接查库） | `routes → controller → service` 单向调用，无跨层快捷路径                                   |
+| 类型检查因 JSX/DOM 配置分家而失效       | TypeScript **Project References**（`tsc -b`）统一收口全仓                                  |
+| 门禁跑不起来 / 测试空转                 | 每个 workspace 都有真实可执行的 `lint / typecheck / test`                                  |
 
 ---
 
 ## 2. 主要功能
 
-| 能力 | 位置 | 说明 |
-| --- | --- | --- |
-| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types) | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse`，零运行时依赖、源码直出 |
-| 依赖方向门禁 | [eslint.config.mjs](eslint.config.mjs) | `web-app` / `server-app` 只能依赖 `shared-types`（及预留的 `shared-utils`）；`shared-types` 不允许依赖任何包；未列出的依赖一律 `error` |
-| 依赖图门禁 | [.dependency-cruiser.cjs](.dependency-cruiser.cjs) | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块 |
-| 全仓类型检查 | [tsconfig.json](tsconfig.json) | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置 |
-| 后端分层示例 | [apps/server/src/modules/user](apps/server/src/modules/user) | 垂直模块：`user.routes.ts` / `user.controller.ts` / `user.service.ts` / `user.types.ts` |
-| 前端页面示例 | [apps/web/src/pages/UserList](apps/web/src/pages/UserList) | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格 |
-| 单元测试 | 各 workspace `src/sanity.test.ts` | 每包 1 个真实执行的 Vitest 用例（含 server 调用 service 的用例） |
+| 能力                   | 位置                                                         | 说明                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse`，零运行时依赖、源码直出                                        |
+| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                       | `web-app` / `server-app` 只能依赖 `shared-types`（及预留的 `shared-utils`）；`shared-types` 不允许依赖任何包；未列出的依赖一律 `error` |
+| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                                              |
+| 全仓类型检查           | [tsconfig.json](tsconfig.json)                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                               |
+| 后端分层示例           | [apps/server/src/modules/user](apps/server/src/modules/user) | 垂直模块：`user.routes.ts` / `user.controller.ts` / `user.service.ts` / `user.types.ts`                                                |
+| 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                                                    |
+| 单元测试               | 各 workspace `src/sanity.test.ts`                            | 每包 1 个真实执行的 Vitest 用例（含 server 调用 service 的用例）                                                                       |
 
 ### 已实现的 API
 
-| 方法 | 路径 | 说明 |
-| --- | --- | --- |
-| `GET` | `/api/users` | 返回全部用户（`items` + `total`，无分页参数） |
-| `GET` | `/api/users/:id` | 按 id 查询，不存在返回 `404` |
-| `POST` | `/api/users` | 创建用户，成功返回 `201` |
-| `PATCH` | `/api/users/:id` | 局部更新，不存在返回 `404` |
-| `DELETE` | `/api/users/:id` | 删除，成功返回 `204`，不存在返回 `404` |
+| 方法     | 路径             | 说明                                          |
+| -------- | ---------------- | --------------------------------------------- |
+| `GET`    | `/api/users`     | 返回全部用户（`items` + `total`，无分页参数） |
+| `GET`    | `/api/users/:id` | 按 id 查询，不存在返回 `404`                  |
+| `POST`   | `/api/users`     | 创建用户，成功返回 `201`                      |
+| `PATCH`  | `/api/users/:id` | 局部更新，不存在返回 `404`                    |
+| `DELETE` | `/api/users/:id` | 删除，成功返回 `204`，不存在返回 `404`        |
 
 数据存在**内存数组**中，进程重启即清空；id 形如 `usr_1`，`createdAt` 为 ISO 8601 字符串。目前**没有**数据库、鉴权、CORS 中间件与持久化（见 [§7 当前范围](#7-当前范围未实现的部分)）。
 
@@ -104,13 +104,13 @@ $env:PORT=3200; pnpm --filter @repo/server dev
 
 ### 门禁命令（CI 可用的卡点）
 
-| 命令 | 作用 | 说明 |
-| --- | --- | --- |
-| `pnpm lint` | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查 |
-| `pnpm typecheck` | `tsc -b`（Project References 全图） | 覆盖 shared-types → server → web |
-| `pnpm test` | `vitest run` | 每个 workspace 各 1 个用例，真实执行 |
-| `pnpm check:deps` | `depcruise apps packages` | 依赖图层面校验三条边界规则 |
-| `pnpm build` | `pnpm -r run build` | 目前**仅** `apps/web` 有 `build` 脚本，产物输出到 `apps/web/dist`；server 以 `tsx` 直接运行，无 build 脚本 |
+| 命令              | 作用                                 | 说明                                                                                                       |
+| ----------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`       | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查                                                                                    |
+| `pnpm typecheck`  | `tsc -b`（Project References 全图）  | 覆盖 shared-types → server → web                                                                           |
+| `pnpm test`       | `vitest run`                         | 每个 workspace 各 1 个用例，真实执行                                                                       |
+| `pnpm check:deps` | `depcruise apps packages`            | 依赖图层面校验三条边界规则                                                                                 |
+| `pnpm build`      | `pnpm -r run build`                  | 目前**仅** `apps/web` 有 `build` 脚本，产物输出到 `apps/web/dist`；server 以 `tsx` 直接运行，无 build 脚本 |
 
 ### 页面行为
 
