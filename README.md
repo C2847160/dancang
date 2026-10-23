@@ -35,7 +35,7 @@
 | 全仓类型检查           | [tsconfig.json](tsconfig.json)                                                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                                            |
 | 后端分层示例           | [apps/server/src/modules](apps/server/src/modules)                                           | 垂直模块：`user`（routes / controller / service / schema）与 `auth`（login 校验链路）                                                               |
 | 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)                                   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                                                                 |
-| 测试                   | `apps/server/src/**/*.test.ts`                                                               | service 单测 9 例 + HTTP 集成测试 10 例（supertest 走真实中间件链，覆盖 201 / 400 / 401 / 404）                                                     |
+| 测试                   | `apps/*/src/**/*.test.{ts,tsx}`                                                              | server 19 例（service 单测 9 + supertest 集成 10）；web 2 例组件测试（jsdom + Testing Library）                                                     |
 
 ### 已实现的 API
 
@@ -153,7 +153,7 @@ $env:PORT=3200; pnpm --filter @repo/server dev
 | ------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm lint`         | ESLint（含 boundaries 依赖方向规则） | 3 个 workspace 全量检查                                                                                                   |
 | `pnpm typecheck`    | `tsc -b`（Project References 全图）  | 覆盖 shared-types → server → web                                                                                          |
-| `pnpm test`         | `vitest run`                         | shared-types / web 各 1 例；server 19 例（service 单测 + supertest 集成测试）                                             |
+| `pnpm test`         | `vitest run`                         | shared-types 1 例；server 19 例（service 单测 + supertest 集成）；web 2 例组件测试（jsdom）                               |
 | `pnpm check:deps`   | `depcruise apps packages`            | 依赖图层面校验三条边界规则                                                                                                |
 | `pnpm format:check` | `prettier --check .`                 | 校验格式化，CI 会跑                                                                                                       |
 | `pnpm format`       | `prettier --write .`                 | 本地批量修复格式化                                                                                                        |
@@ -349,5 +349,5 @@ packages/
 - CORS 中间件（跨域调用请走 Vite 代理）
 - AI 能力集成（`apps/server/src/ai/` 尚未创建）
 - `packages/shared-utils`（跨端工具包尚未创建；未来新增时需同步更新 `tsconfig.json` 的 `paths` 与 ESLint boundaries 配置）
-- 前端写入表单（页面目前只做列表展示）
-- 前端组件测试：web 端仍只有 1 个占位用例，尚未引入 jsdom / Testing Library；测试深度目前集中在 server
+- 前端写入表单：`LoginForm` 组件已就绪但**尚未挂载**，`main.tsx` 仍只渲染用户列表
+- 前端组件测试覆盖面仍很窄：目前只覆盖 `LoginForm` 的输入与提交，`UserList` 的 loading / error / 空态尚未覆盖
