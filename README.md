@@ -34,7 +34,7 @@
 | 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)                                           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                                                           |
 | 全仓类型检查           | [tsconfig.json](tsconfig.json)                                                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                                            |
 | 后端分层示例           | [apps/server/src/modules](apps/server/src/modules)                                           | 垂直模块：`user`（routes / controller / service / schema）与 `auth`（login 校验链路）                                                               |
-| 前端页面示例           | [apps/web/src/pages/UserList](apps/web/src/pages/UserList)                                   | `useUsers` hook 拉取列表（含 loading / error / AbortController 清理），页面渲染表格                                                                 |
+| 前端页面示例           | [apps/web/src/App.tsx](apps/web/src/App.tsx)                                                 | 组合根：登录区（含 loading / 成功 / 失败提示）+ 用户列表区                                                                                          |
 | 测试                   | `apps/*/src/**/*.test.{ts,tsx}`                                                              | server 19 例（service 单测 9 + supertest 集成 10）；web 2 例组件测试（jsdom + Testing Library）                                                     |
 
 ### 已实现的 API
@@ -102,7 +102,9 @@ pnpm dev
 
 - 前端：<http://localhost:5173>
 - 后端：<http://localhost:3100>
-- 浏览器打开前端地址应看到用户列表表格（内存中初始为空，显示 `No users`）
+- 浏览器打开前端地址即可看到一个可直接操作的页面：登录表单 + 用户列表表格（服务端启动时会预置一个演示账号）
+
+演示账号（内存预置，仅用于本地体验登录链路）：`ada@example.com` / `password123`
 
 `pnpm install` 结束时会自动执行根 `prepare` 脚本安装 Git 钩子（husky），因此克隆后**无需额外步骤**即可获得提交前检查。如果你不想要钩子，可在命令前加 `HUSKY=0`。
 
@@ -182,14 +184,23 @@ $env:PORT=3200; pnpm --filter @repo/server dev
 
 ### 页面行为
 
-打开 <http://localhost:5173> 后看到用户列表表格，列为 `Avatar / ID / Email / Name / Created`：
+打开 <http://localhost:5173> 后看到 [App](apps/web/src/App.tsx) 组合的两个区域：
+
+**登录区**（[pages/Login](apps/web/src/pages/Login)）
+
+- 空闲：显示 Email / Password 输入框与 `Sign in` 按钮
+- 提交中：按钮文案变为 `Signing in…` 并禁用，表单下方显示 `Checking credentials…`
+- 失败：表单下方以红色显示服务端返回的 `error.message`（例如 `Invalid email or password`）
+- 成功：表单替换为 `Signed in as <name> (<email>)` 与 `Sign out` 按钮
+
+**用户列表区**（[pages/UserList](apps/web/src/pages/UserList)），列为 `Avatar / ID / Email / Name / Created`：
 
 - 加载中：显示 `Loading…`
 - 请求失败：显示错误文案（`Request failed with status <code>` 等）
 - 无数据：表格正文显示 `No users`
 - `avatarUrl` 缺失时头像列显示 `—`
 
-新建用户需通过下方 API 调用（页面当前只做读取展示，没有表单）。
+登录只影响前端展示，不签发 token；新建用户仍需通过下方 API 调用（页面暂无注册表单）。
 
 ---
 
@@ -312,7 +323,7 @@ curl -i -X DELETE http://localhost:3100/api/users/usr_1
 
 ### 前端侧输入输出
 
-前端不产生请求体，输入就是上面这些接口的响应；输出是页面表格。例如 `GET /api/users` 返回的 `items` 会逐行渲染，`createdAt` 经 `new Date(...).toLocaleString()` 本地化后显示。
+前端产生两类请求：`GET /api/users` 拉取列表，`POST /api/auth/login` 提交登录表单。请求/响应体都直接用 [packages/shared-types](packages/shared-types) 里的 `LoginRequest` / `LoginResponse` / `ApiErrorBody` 类型标注，没有在前端重复定义。
 
 ---
 
@@ -349,5 +360,6 @@ packages/
 - CORS 中间件（跨域调用请走 Vite 代理）
 - AI 能力集成（`apps/server/src/ai/` 尚未创建）
 - `packages/shared-utils`（跨端工具包尚未创建；未来新增时需同步更新 `tsconfig.json` 的 `paths` 与 ESLint boundaries 配置）
-- 前端写入表单：`LoginForm` 组件已就绪但**尚未挂载**，`main.tsx` 仍只渲染用户列表
-- 前端组件测试覆盖面仍很窄：目前只覆盖 `LoginForm` 的输入与提交，`UserList` 的 loading / error / 空态尚未覆盖
+- 注册表单：页面只有登录表单，新建用户仍需调用 API
+- 演示账号是服务端启动时写入内存的种子数据（`ada@example.com` / `password123`），仅用于本地体验，不属于正式功能
+- 前端组件测试覆盖面仍很窄：目前只覆盖 `LoginForm` 的输入与提交，`UserList` 的 loading / error / 空态以及登录页的状态流转尚未覆盖

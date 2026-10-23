@@ -8,6 +8,7 @@ import express from 'express';
 import type { Express } from 'express';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler';
 import { authRouter } from './modules/auth/auth.routes';
+import * as userService from './modules/user/user.service';
 import { userRouter } from './modules/user/user.routes';
 
 /**
@@ -39,6 +40,16 @@ const isEntryPoint =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isEntryPoint) {
+  // Demo-only seed: the user store lives in memory, so a fresh process would
+  // otherwise have no account for the login form to authenticate against.
+  // Not run under test (this block is entry-point only). Remove once the user
+  // module is backed by a real database.
+  userService.create({
+    email: 'ada@example.com',
+    name: 'Ada Lovelace',
+    password: 'password123',
+  });
+
   // Port is env-configurable (defaults to 3100; 3000 is often taken by other local projects).
   const port = Number(process.env.PORT ?? 3100);
   createApp().listen(port, () => {

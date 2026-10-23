@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import UserListPage from './pages/UserList';
+import App from './App';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -9,6 +9,6 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <UserListPage />
+    <App />
   </StrictMode>,
 );
