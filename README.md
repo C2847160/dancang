@@ -2,6 +2,8 @@
 
 开源工程 Monorepo 骨架：**前后端同仓，但架构边界由工具链强制**（不是靠 code review 时的自觉）。
 
+> **在线演示**：[Live Demo](https://...) —— 部署后可操作登录流程（演示账号 `ada@example.com` / `password123`）。占位待填：部署完成后把 `https://...` 换成实际地址。
+
 当前状态：可运行的最小闭环 —— 一个垂直切片（用户 CRUD）跑在完整的分层 + 契约 + 门禁体系上。因此这里能跑的东西很少，但**边界规则是真的会被 CI 拦下来的**。
 
 ---
@@ -35,6 +37,7 @@
 | 全仓类型检查           | [tsconfig.json](tsconfig.json)                                                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                                            |
 | 后端分层示例           | [apps/server/src/modules](apps/server/src/modules)                                           | 垂直模块：`user`（routes / controller / service / schema）与 `auth`（login 校验链路）                                                               |
 | 前端页面示例           | [apps/web/src/App.tsx](apps/web/src/App.tsx)                                                 | 组合根：登录区（含 loading / 成功 / 失败提示）+ 用户列表区                                                                                          |
+| 部署配置               | [vercel.json](vercel.json)                                                                   | 前端静态部署：pnpm workspace 安装、Vite 构建、SPA rewrite；无后端时自动使用演示数据                                                                 |
 | 测试                   | `apps/*/src/**/*.test.{ts,tsx}`                                                              | server 19 例（service 单测 9 + supertest 集成 10）；web 2 例组件测试（jsdom + Testing Library）                                                     |
 
 ### 已实现的 API
@@ -48,7 +51,7 @@
 | `DELETE` | `/api/users/:id`  | 删除，成功返回 `204`，不存在返回 `404`                            |
 | `POST`   | `/api/auth/login` | 校验邮箱 + 密码，成功返回 `200 { user }`，失败返回 `401`          |
 
-数据存在**内存数组**中，进程重启即清空；id 形如 `usr_1`，`createdAt` 为 ISO 8601 字符串。登录只做凭据校验，**不签发 token / 不建立会话**。目前**没有**数据库、CORS 中间件与持久化（见 [§7 当前范围](#7-当前范围未实现的部分)）。
+数据存在**内存数组**中，进程重启即清空；id 形如 `usr_1`，`createdAt` 为 ISO 8601 字符串。登录只做凭据校验，**不签发 token / 不建立会话**。目前**没有**数据库、CORS 中间件与持久化（见 [§8 当前范围](#8-当前范围未实现的部分)）。
 
 ### 统一错误格式
 
@@ -257,7 +260,7 @@ curl -X POST http://localhost:3100/api/auth/login \
 - 邮箱或密码错误：`401` + `{ "error": { "code": "UNAUTHORIZED", "message": "Invalid email or password" } }`
 - 请求体格式错误：`400` + `VALIDATION_ERROR`
 
-登录只验证凭据，不签发 token，也不建立会话（见 [§7](#7-当前范围未实现的部分)）。
+登录只验证凭据，不签发 token，也不建立会话（见 [§8](#8-当前范围未实现的部分)）。
 
 ### 查询列表（GET /api/users）
 
@@ -349,14 +352,145 @@ packages/
 
 完整规范见 [spec.md](spec.md)。
 
+### 架构图
+
+```mermaid
+flowchart TB
+  subgraph Browser["浏览器（apps/web）"]
+    direction TB
+    App["App.tsx<br/>组合根：登录区 + 列表区"]
+    Hook["useLogin / useUsers<br/>请求生命周期"]
+    ApiClient["lib/api.ts<br/>真实请求 · 演示数据开关"]
+    App --> Hook --> ApiClient
+  end
+
+  subgraph Node["Node 进程（apps/server）"]
+    direction TB
+    Router["routes<br/>仅方法 / 路径映射"]
+    Controller["controller<br/>HTTP 边界：解析 · 状态码"]
+    Service["service<br/>业务逻辑（无 req/res）"]
+    MW["middlewares<br/>validateBody · errorHandler"]
+    Router --> Controller --> Service
+    MW -. "包裹请求" .-> Controller
+  end
+
+  Types["@repo/shared-types<br/>纯类型 · 零运行时依赖 · 源码直出"]
+
+  ApiClient -- "HTTP JSON<br/>/api/users · /api/auth/login" --> Router
+  ApiClient -. "import type" .-> Types
+  Controller -. "import type" .-> Types
+  Service -. "import type" .-> Types
+
+  subgraph Gates["可执行门禁"]
+    direction LR
+    ESL["ESLint boundaries"]
+    Dep["dependency-cruiser"]
+    TSC["tsc -b"]
+    Test["Vitest"]
+  end
+
+  Gates -. "CI / pre-push / pre-commit" .-> Browser
+```
+
+图中的三条虚线是这套骨架的核心约束：**类型只能单向来自契约层**，**两端只能用 HTTP 通信**，**门禁在提交与 CI 上自动执行**。
+
 ---
 
-## 7. 当前范围（未实现的部分）
+## 7. 部署（前端 → Vercel）
+
+### 7.1 这套部署方案的取舍
+
+后端的用户数据存在内存里、且没有 CORS 中间件，所以本仓库**只部署前端**。前端被设计成"没有后端也能完整演示"：
+
+| 场景             | `VITE_API_BASE_URL` | 行为                                                                                     |
+| ---------------- | ------------------- | ---------------------------------------------------------------------------------------- |
+| 本地开发         | 留空                | 走 Vite 代理 → 真实后端（3100）                                                          |
+| 线上演示（默认） | 留空                | **纯前端演示数据**，不发任何 `/api/*` 请求，登录/列表照常可用，页头显示 `demo data` 角标 |
+| 线上接真实后端   | 填后端地址          | 走真实 HTTP，服务端错误按 `ApiErrorBody` 原文展示                                        |
+
+判定逻辑在 [apps/web/src/lib/api.ts](apps/web/src/lib/api.ts)，是**构建时决定的开关**，不靠"请求失败后再兜底"——静态托管常把 `/api/*` 回退成 `index.html` 返回 200，运行时嗅探错误并不可靠。
+
+演示数据：登录接受 `ada@example.com` / `password123`，用户列表返回 1 行 Ada Lovelace（见 [mock-api.ts](apps/web/src/lib/mock-api.ts)）。
+
+### 7.2 仓库内已有的配置
+
+[vercel.json](vercel.json) 已放在仓库根目录：
+
+```json
+{
+  "framework": "vite",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @repo/web build",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+关键点：Vercel 对 pnpm workspace 的自动探测会猜错产物目录，所以 `buildCommand` / `outputDirectory` 都写死；`installCommand` 在**仓库根**执行，这样才能解析 `workspace:*`（`@repo/shared-types` 走 pnpm symlink，Vite 直接从源码转译）。
+
+### 7.3 Vercel 操作步骤
+
+1. 打开 <https://vercel.com/new>，用 GitHub 账号登录。
+2. 在 **Import Git Repository** 列表里选 `C2847160/dancang`，点 **Import**。没有的话先点 **Adjust GitHub App Permissions** 授权该仓库。
+3. **Configure Project** 页面：
+   - **Project Name**：`dancang`（决定 `dancang.vercel.app` 域名）
+   - **Framework Preset**：会显示 `Vite`，不用改
+   - **Root Directory**：**保持默认（仓库根）**。不要选 `apps/web`，否则 pnpm workspace 的 `workspace:*` 解析会失败。
+   - **Build & Output Settings**：不要手动改，[vercel.json](vercel.json) 已经覆盖。
+4. 展开 **Environment Variables**：
+   - 想跑纯前端演示：**什么都不填**，直接下一步。
+   - 想接真实后端：新增 `VITE_API_BASE_URL` = 你的后端地址（不要带结尾 `/`，也不要带 `/api`），环境选 **Production / Preview / Development** 全勾。
+   - 想强制演示数据（即使配了后端地址）：再加 `VITE_USE_MOCK_API` = `true`。
+5. 点 **Deploy**，等构建完成（大约 1 分钟）。
+6. 打开 `https://<project>.vercel.app`，应当看到：页头 `Dancang` + 黄色 `demo data` 角标、登录表单、Users 表格 1 行数据。用 `ada@example.com` / `password123` 登录可看到成功态。
+
+把域名填回本文顶部的 [Live Demo](https://...) 占位符。
+
+> **Node 版本**：若构建因 Node 版本失败，在 **Project Settings → General → Node.js Version** 选 `22.x` 或 `24.x`（与 CI 一致）。根 `package.json` 的 `engines.node` 是 `>=20`。
+
+### 7.4 改动环境变量后必须重新部署
+
+Vite 在**构建时**把 `VITE_*` 变量内联进产物，运行时读环境变量无效。改完变量后到 **Deployments → 最新一条 → ⋯ → Redeploy**，否则页面仍是旧值。
+
+### 7.5 备选：Netlify
+
+不想用 Vercel 的话，Netlify 的等价配置是仓库根的 `netlify.toml`：
+
+```toml
+[build]
+  command = "pnpm --filter @repo/web build"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+Netlify 需要在 **Site settings → Build & deploy → Environment** 里设置 `PNPM_VERSION=9.15.0`（或读取根 `packageManager`），并在 **Environment variables** 里配 `VITE_API_BASE_URL`。
+
+### 7.6 常见坑
+
+| 现象                                      | 原因 / 处理                                                                                                             |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| 构建报 `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND` | Root Directory 被设成了 `apps/web`，改回仓库根                                                                          |
+| 页面 404 / 白屏                           | `outputDirectory` 与 `rewrites` 没生效，确认 [vercel.json](vercel.json) 在**仓库根**而不是 `apps/web`                   |
+| 登录一直报 `Cannot reach the API at ...`  | `VITE_API_BASE_URL` 填成了静态站点自己的域名：静态站点没有 `/api`，会被 rewrite 回 `index.html`。该变量必须指向真实后端 |
+| 改了环境变量但页面没变                    | 没有重新部署，见 §7.4                                                                                                   |
+| 部署后登录成功但刷新丢状态                | 登录态只存在 React state 里，不写 localStorage，也不签发 token（见 §8）                                                 |
+
+---
+
+## 8. 当前范围（未实现的部分）
 
 为避免误解，以下内容**尚未实现**，仅在规范中预留：
 
 - 数据库 / 持久化（当前为内存存储，重启即清空）
-- 会话与鉴权中间件：`POST /api/auth/login` 只校验凭据，不签发 token、不保护任何路由
+- 会话与鉴权中间件：`POST /api/auth/login` 只校验凭据，不签发 token、不保护任何路由；登录态仅存于前端 React state，刷新即丢失
+- 后端部署：线上只部署前端，后端仅本地运行；因此部署形态下前端默认使用内置演示数据（见 §7）
 - CORS 中间件（跨域调用请走 Vite 代理）
 - AI 能力集成（`apps/server/src/ai/` 尚未创建）
 - `packages/shared-utils`（跨端工具包尚未创建；未来新增时需同步更新 `tsconfig.json` 的 `paths` 与 ESLint boundaries 配置）
