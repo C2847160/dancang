@@ -9,15 +9,19 @@
 
 [build.environment]
   NODE_VERSION = "24"
-  PNPM_VERSION = "9.15.0"
+  # `pnpm install` triggers the root `prepare: husky` script. Netlify is not a
+  # developer machine, so skip hook installation (same as the GitHub Actions
+  # workflow). The pnpm version itself is taken from `packageManager` in the
+  # root package.json via Corepack — Netlify has no PNPM_VERSION variable.
+  HUSKY = "0"
 
-# SPA fallback: every unknown path serves index.html so client-side routing and
-# the demo dataset work on a hard refresh.
+# SPA fallback: unknown paths serve index.html so a hard refresh works.
+# Netlify serves existing files first, so /assets/* is unaffected.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
 # Vite inlines VITE_* variables at build time, so a change requires a redeploy.
-# Set VITE_API_BASE_URL in Site settings → Environment variables to point at a
-# real backend; leave it unset to use the built-in demo dataset.
+# Set VITE_API_BASE_URL in Site configuration → Environment variables to point
+# at a real backend; leave it unset to use the built-in demo dataset.
