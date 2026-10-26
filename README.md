@@ -2,7 +2,7 @@
 
 开源工程 Monorepo 骨架：**前后端同仓，但架构边界由工具链强制**（不是靠 code review 时的自觉）。
 
-> **在线演示**：[Live Demo](https://...) —— 部署后可操作登录流程（演示账号 `ada@example.com` / `password123`）。占位待填：部署完成后把 `https://...` 换成实际地址。
+> **在线演示**：[Live Demo](https://dancang.netlify.app) —— 可直接操作登录流程（演示账号 `ada@example.com` / `password123`）。前端部署在 Netlify，默认使用内置演示数据，无需后端即可完整体验。
 
 当前状态：可运行的最小闭环 —— 一个垂直切片（用户 CRUD）跑在完整的分层 + 契约 + 门禁体系上。因此这里能跑的东西很少，但**边界规则是真的会被 CI 拦下来的**。
 
