@@ -1,4 +1,4 @@
-# ai-monorepo
+# Dancang
 
 开源工程 Monorepo 骨架：**前后端同仓，但架构边界由工具链强制**（不是靠 code review 时的自觉）。
 
