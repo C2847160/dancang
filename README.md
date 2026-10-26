@@ -216,6 +216,48 @@ flowchart LR
   H --> I["合入"]
 ```
 
+### 实际协同流程
+
+这个仓库不是"一次对话生成整个项目"，而是把工作切成**一次一个可验收切片**，每个切片都走同一条流水线：
+
+| 步  | 动作                                                                    | 产出 / 兜底                        |
+| --- | ----------------------------------------------------------------------- | ---------------------------------- |
+| 1   | **切分切片**：用一句话定义可验收的行为，只波及一个 workspace            | 验收条件（能跑的命令或能点的页面） |
+| 2   | **先读后写**：先 Read / Grep 真实文件，不凭记忆改代码                   | 见过的实现，而非猜测               |
+| 3   | **契约先行**：先改 `shared-types`，让两侧**同时**编译失败再逐处修       | 编译错误即任务清单                 |
+| 4   | **最小改动**：只改必要文件，不顺带重构、不顺手改名                      | 便于 review 的小 diff              |
+| 5   | **门禁收敛**：`typecheck → test → check:deps → build`，按失败信息逐个修 | 全绿才算完成                       |
+| 6   | **分段提交**：Conventional Commits；pre-push 跑全量；CI 再跑一遍含构建  | 可回溯的提交历史                   |
+
+第 3 步是关键：它把"AI 需要记得两侧字段一致"变成"AI 会收到两条编译错误"。**任务清单不再来自人的描述，而来自编译器。**
+
+一个切片典型只有 3–6 个文件；跨会话时新会话的上下文里没有旧对话，但有 `shared-types` 和会失败的门禁——这两样才是跨会话传递的信息。
+
+### 真实翻车记录
+
+流水线不是装饰，下面每一行都是本项目实际踩过、并靠门禁或读代码发现的：
+
+| 现象                                       | 根因                                                                                             | 修复                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| `pnpm check:deps` 报未解析模块             | `tsconfig.json` 的 `paths` 里残留了一条从未存在的 `@repo/shared-utils`                           | 删除该 paths                                       |
+| `pnpm build` 后声明文件消失                | `apps/web` 的 `declarationDir` 与 Vite `outDir` 同为 `dist`，`tsc -b` 误判输出为最新             | 改为 `dist-types`，与 `dist` 分离                  |
+| 测试文件仍被计入类型检查                   | `exclude: ["src/**/*.test.ts"]` 匹配不到 `.tsx`，TS glob 不支持 `{}` 展开                        | 每个子包补一行 `src/**/*.test.tsx`                 |
+| RTL 报 `found multiple elements`           | 项目显式 `import { it } from 'vitest'`，Testing Library 检测不到全局 `afterEach`，不自动 cleanup | `test-setup.ts` 里显式 `afterEach(cleanup)`        |
+| Netlify 构建读到一个不存在的变量           | 早期 `netlify.toml` 里写了 `PNPM_VERSION`，而 Netlify 并无此变量                                 | 删除；版本由根 `packageManager` 经 Corepack 决定   |
+| 静态站点上 `/api/*` 返回 200 但内容是 HTML | Netlify/Vercel 的 SPA rewrite 把未知路径全部吐 `index.html`，运行时无法区分真假接口              | 放弃运行时 Mock 兜底，改为**构建期**决定 demo 模式 |
+| README 写「创建用户冲突返回 409」          | 没读 `create()` 就凭印象写，而实际没有重复邮箱校验                                               | 读代码后删除该描述，并列入「当前范围」             |
+
+最后一行是这条工作流最真实的边界：**门禁只管代码，不管文档**。文档里的断言必须自己回到源码核对。
+
+### 规则写在配置里，不写在提示词里
+
+AI 不会稳定遵守一段要求它"不要跨端 import"的文字，但会稳定地读失败输出。所以约束一律落到可执行文件：
+
+- 边界 → `eslint.config.mjs` 的元素类型与允许矩阵、`.dependency-cruiser.cjs` 的三条 `error` 规则；
+- 类型契约 → `packages/shared-types` + 根 `tsconfig.json` 的 `references`；
+- 质量门禁 → `.husky/pre-commit`、`.husky/pre-push`、`.github/workflows/ci.yml`；
+- 提交规范 → Conventional Commits（`feat:` / `fix:` / `docs:` / `test:` …）。
+
 ### 这套结构**没有**解决的问题
 
 保持诚实比显得完整更重要：
