@@ -84,7 +84,8 @@ dancang/
 │   │   │   │   └── LoginForm/      # 纯展示表单（不碰网络）+ 组件测试
 │   │   │   ├── pages/
 │   │   │   │   ├── Login/          # useLogin hook + 页面状态渲染
-│   │   │   │   └── UserList/       # useUsers hook + 表格
+│   │   │   │   ├── UserList/       # useUsers hook + 表格
+│   │   │   │   └── Chat/           # useChat hook + 对话 UI
 │   │   │   ├── lib/
 │   │   │   │   ├── api.ts          # 唯一请求出口（真实 / demo 模式分流）
 │   │   │   │   └── mock-api.ts     # 内置演示数据
@@ -96,18 +97,26 @@ dancang/
 │   └── server/                     # @repo/server — Express（端口 3100）
 │       └── src/
 │           ├── server.ts           # createApp() + 进程入口（含演示种子数据）
+│           ├── ai/                 # LLM provider 抽象 + mock / openai 实现
+│           │   ├── provider.ts     # ChatProvider 接口
+│           │   ├── providers/
+│           │   │   ├── mock-provider.ts
+│           │   │   └── openai-provider.ts
+│           │   └── index.ts        # 工厂：按 LLM_PROVIDER 返回 provider
 │           ├── middlewares/
 │           │   ├── validate.ts     # zod schema → 归一化 req.body
 │           │   └── error-handler.ts# AppError / notFoundHandler / errorHandler
 │           └── modules/
 │               ├── user/           # routes / controller / service / schema / types
-│               └── auth/           # login 校验链路
+│               ├── auth/           # login 校验链路
+│               └── chat/           # 调用 AI 层返回回复
 │
 ├── packages/
 │   └── shared-types/               # @repo/shared-types — 唯一契约来源
 │       └── src/
 │           ├── index.ts            # 统一 re-export
 │           ├── user.ts             # User / CreateUserRequest / UpdateUserRequest ...
+│           ├── chat.ts             # ChatRole / ChatMessage / ChatRequest / ChatResponse
 │           └── error.ts            # ApiErrorCode / ApiErrorDetail / ApiErrorBody
 │
 ├── .github/workflows/ci.yml        # 格式 · Lint · 类型 · 测试 · 构建 · 依赖图
@@ -273,18 +282,19 @@ AI 不会稳定遵守一段要求它"不要跨端 import"的文字，但会稳�
 
 ## 功能与 API
 
-| 能力                   | 位置                                                                                         | 说明                                                                                                                        |
-| ---------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)                                               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse` / `LoginRequest` / `LoginResponse` / `ApiErrorBody` |
-| 请求体校验             | [apps/server/src/middlewares/validate.ts](apps/server/src/middlewares/validate.ts)           | zod schema 在进入 controller 前校验并归一化 `req.body`，失败统一转 400 + 字段级 details                                     |
-| 全局错误处理           | [apps/server/src/middlewares/error-handler.ts](apps/server/src/middlewares/error-handler.ts) | 4 参 Express 错误中间件：`AppError` → 对应状态码，`ZodError` → 400，未知异常 → 500 且只回固定文案                           |
-| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                                                       | `web-app` / `server-app` 只能依赖 `shared-types`；`shared-types` 不允许依赖任何包                                           |
-| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)                                           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                                   |
-| 全仓类型检查           | [tsconfig.json](tsconfig.json)                                                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                    |
-| 后端分层示例           | [apps/server/src/modules](apps/server/src/modules)                                           | 垂直模块：`user`（routes / controller / service / schema）与 `auth`（login 校验链路）                                       |
-| 前端页面示例           | [apps/web/src/App.tsx](apps/web/src/App.tsx)                                                 | 组合根：登录区（含 loading / 成功 / 失败提示）+ 用户列表区                                                                  |
-| 部署配置               | [netlify.toml](netlify.toml) / [vercel.json](vercel.json)                                    | 前端静态部署：pnpm workspace 安装、Vite 构建、SPA rewrite；无后端时自动使用演示数据                                         |
-| 测试                   | `apps/*/src/**/*.test.{ts,tsx}`                                                              | server 19 例（service 单测 9 + supertest 集成 10）；web 2 例组件测试；shared-types 1 例                                     |
+| 能力                   | 位置                                                                                         | 说明                                                                                                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 契约层（单一类型来源） | [packages/shared-types](packages/shared-types)                                               | `User` / `CreateUserRequest` / `UpdateUserRequest` / `UserListResponse` / `LoginRequest` / `LoginResponse` / `ChatMessage` / `ChatRequest` / `ChatResponse` / `ApiErrorBody` |
+| 请求体校验             | [apps/server/src/middlewares/validate.ts](apps/server/src/middlewares/validate.ts)           | zod schema 在进入 controller 前校验并归一化 `req.body`，失败统一转 400 + 字段级 details                                                                                      |
+| 全局错误处理           | [apps/server/src/middlewares/error-handler.ts](apps/server/src/middlewares/error-handler.ts) | 4 参 Express 错误中间件：`AppError` → 对应状态码，`ZodError` → 400，未知异常 → 500 且只回固定文案                                                                            |
+| **AI 层**              | [apps/server/src/ai](apps/server/src/ai)                                                     | LLM provider 抽象 + Mock provider（开箱即用）+ OpenAI provider（`OPENAI_API_KEY` 启用）；`LLM_PROVIDER` 切换，仅被 service 调用                                              |
+| 依赖方向门禁           | [eslint.config.mjs](eslint.config.mjs)                                                       | `web-app` / `server-app` 只能依赖 `shared-types`；`shared-types` 不允许依赖任何包                                                                                            |
+| 依赖图门禁             | [.dependency-cruiser.cjs](.dependency-cruiser.cjs)                                           | 三条 error 级规则：禁止 web→server、server→web、shared-types 引入包外模块                                                                                                    |
+| 全仓类型检查           | [tsconfig.json](tsconfig.json)                                                               | `files: []` + `references` → `tsc -b` 按项目引用构建，各 app 用各自的 `jsx` / `lib` 配置                                                                                     |
+| 后端分层示例           | [apps/server/src/modules](apps/server/src/modules)                                           | 垂直模块：`user`（CRUD）、`auth`（login 校验）、`chat`（调用 AI 层返回回复）                                                                                                 |
+| 前端页面示例           | [apps/web/src/App.tsx](apps/web/src/App.tsx)                                                 | 组合根：登录区（含 loading / 成功 / 失败提示）+ 用户列表区 + AI 聊天区                                                                                                       |
+| 部署配置               | [netlify.toml](netlify.toml) / [vercel.json](vercel.json)                                    | 前端静态部署：pnpm workspace 安装、Vite 构建、SPA rewrite；无后端时自动使用演示数据                                                                                          |
+| 测试                   | `apps/*/src/**/*.test.{ts,tsx}`                                                              | server 26 例（service 单测 12 + supertest 集成 14）；web 2 例组件测试；shared-types 1 例                                                                                     |
 
 ### 已实现的 API
 
@@ -296,6 +306,7 @@ AI 不会稳定遵守一段要求它"不要跨端 import"的文字，但会稳�
 | `PATCH`  | `/api/users/:id`  | 局部更新，不存在返回 `404`                                       |
 | `DELETE` | `/api/users/:id`  | 删除，不存在返回 `404`                                           |
 | `POST`   | `/api/auth/login` | 校验邮箱与密码，成功返回 `LoginResponse`，失败返回 `401`         |
+| `POST`   | `/api/chat`       | 发送对话（`messages` 数组），返回 assistant 的下一条消息         |
 
 所有错误响应共用一种信封：
 
@@ -326,6 +337,11 @@ curl -X POST http://localhost:3100/api/users \
 curl -X POST http://localhost:3100/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"ada@example.com","password":"password123"}'
+
+# 聊天（默认走 Mock provider，无需 API Key）
+curl -X POST http://localhost:3100/api/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"Hello"}]}'
 ```
 
 ---

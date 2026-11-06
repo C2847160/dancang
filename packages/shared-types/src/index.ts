@@ -11,3 +11,4 @@ export type {
   UserListResponse,
 } from './user';
 export type { ApiErrorBody, ApiErrorCode, ApiErrorDetail } from './error';
+export type { ChatMessage, ChatRequest, ChatResponse, ChatRole } from './chat';

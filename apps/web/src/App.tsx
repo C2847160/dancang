@@ -8,6 +8,7 @@ import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { User } from '@repo/shared-types';
 import { IS_MOCK_MODE } from './lib/api';
+import ChatPage from './pages/Chat';
 import LoginPage from './pages/Login';
 import UserListPage from './pages/UserList';
 
@@ -93,6 +94,11 @@ export default function App() {
       <section>
         <h2 style={sectionHeadingStyle}>Users</h2>
         <UserListPage />
+      </section>
+
+      <section>
+        <h2 style={sectionHeadingStyle}>Chat (AI)</h2>
+        <ChatPage />
       </section>
     </div>
   );

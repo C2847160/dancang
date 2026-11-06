@@ -14,12 +14,14 @@
  */
 import type {
   ApiErrorBody,
+  ChatRequest,
+  ChatResponse,
   LoginRequest,
   LoginResponse,
   User,
   UserListResponse,
 } from '@repo/shared-types';
-import { mockGetUsers, mockLogin } from './mock-api';
+import { mockChat, mockGetUsers, mockLogin } from './mock-api';
 
 const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -104,4 +106,16 @@ export async function login(credentials: LoginRequest): Promise<User> {
     body: JSON.stringify(credentials),
   });
   return data.user;
+}
+
+/** Sends a conversation and returns the assistant's next message (POST /api/chat). */
+export async function chat(input: ChatRequest): Promise<ChatResponse> {
+  if (IS_MOCK_MODE) {
+    return mockChat(input);
+  }
+  return requestJson<ChatResponse>('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
 }

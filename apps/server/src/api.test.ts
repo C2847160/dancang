@@ -5,6 +5,7 @@
  */
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { resetChatProvider } from './ai';
 import { createApp } from './server';
 import * as userService from './modules/user/user.service';
 
@@ -14,6 +15,7 @@ const validUser = { email: 'ada@example.com', name: 'Ada', password: 'correct-ho
 
 beforeEach(() => {
   userService.reset();
+  resetChatProvider();
 });
 
 describe('POST /api/users', () => {
@@ -104,6 +106,42 @@ describe('POST /api/auth/login', () => {
       (detail: { path: string }) => detail.path,
     );
     expect(paths).toEqual(expect.arrayContaining(['email', 'password']));
+  });
+});
+
+describe('POST /api/chat', () => {
+  it('returns an assistant message for a valid conversation', async () => {
+    const response = await request(app)
+      .post('/api/chat')
+      .send({ messages: [{ role: 'user', content: 'Hi' }] });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      message: { role: 'assistant', content: '[mock] You said: "Hi"' },
+    });
+  });
+
+  it('returns 400 when messages is empty', async () => {
+    const response = await request(app).post('/api/chat').send({ messages: [] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 when a message has an unknown role', async () => {
+    const response = await request(app)
+      .post('/api/chat')
+      .send({ messages: [{ role: 'bot', content: 'Hi' }] });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 when the body is missing', async () => {
+    const response = await request(app).post('/api/chat').send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
   });
 });
 

@@ -8,6 +8,7 @@ import express from 'express';
 import type { Express } from 'express';
 import { errorHandler, notFoundHandler } from './middlewares/error-handler';
 import { authRouter } from './modules/auth/auth.routes';
+import { chatRouter } from './modules/chat/chat.routes';
 import * as userService from './modules/user/user.service';
 import { userRouter } from './modules/user/user.routes';
 
@@ -24,6 +25,7 @@ export function createApp(): Express {
   // Mount routers.
   app.use('/api/users', userRouter);
   app.use('/api/auth', authRouter);
+  app.use('/api/chat', chatRouter);
 
   // Unmatched routes get a JSON envelope instead of Express' HTML default.
   app.use(notFoundHandler);

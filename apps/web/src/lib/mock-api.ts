@@ -5,7 +5,14 @@
  * deployment stays fully operable: the login form accepts the demo account and
  * the user list renders a real row, with no network involved.
  */
-import type { LoginRequest, User, UserListResponse } from '@repo/shared-types';
+import type {
+  ChatMessage,
+  ChatRequest,
+  ChatResponse,
+  LoginRequest,
+  User,
+  UserListResponse,
+} from '@repo/shared-types';
 
 export const DEMO_EMAIL = 'ada@example.com';
 export const DEMO_PASSWORD = 'password123';
@@ -40,4 +47,18 @@ export async function mockLogin(input: LoginRequest): Promise<User> {
     throw new Error('Invalid email or password');
   }
   return DEMO_USER;
+}
+
+/**
+ * Fake chat completion, shaped exactly like POST /api/chat.
+ * Echoes the last user message, matching the server's MockChatProvider.
+ */
+export async function mockChat(input: ChatRequest): Promise<ChatResponse> {
+  await delay();
+  const lastUser = [...input.messages].reverse().find((m) => m.role === 'user');
+  const reply: ChatMessage = {
+    role: 'assistant',
+    content: `[mock] You said: "${lastUser?.content ?? 'Hello'}"`,
+  };
+  return { message: reply };
 }
